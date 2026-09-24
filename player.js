@@ -1,4 +1,4 @@
-import { $, ref, onValue, get, set, transact, roomRef, now, background } from './live.js';
+import { $, db, ref, onValue, get, set, transact, roomRef, now, background } from './live.js';
 import { openRoom, answerRoom, remaining, escapeHTML } from './game-core.mjs';
 let room=sessionStorage.getItem('cbRoom'),id=sessionStorage.getItem('cbId'),data,unsubscribe,key='',notified='',pending=0;
 const query=new URLSearchParams(location.search),requested=query.get('room');
@@ -21,7 +21,7 @@ $('join').onclick=async()=>{
     const playerId='p_'+crypto.randomUUID();
     // Register below the room rather than replacing it. This works with the
     // Firebase rules that permit participant writes but reject room transactions.
-    await set(ref(roomRef(code),`jugadores/${playerId}`),{nombre:name,puntaje:0});
+    await set(ref(db,`activacion_arcade/salas/${code}/jugadores/${playerId}`),{nombre:name,puntaje:0});
     room=code;id=playerId;sessionStorage.setItem('cbRoom',room);sessionStorage.setItem('cbId',id);connect();
   }catch(e){$('loginMessage').textContent='No pudimos conectar. Revisa tu conexión e inténtalo nuevamente.';console.error(e);}
   finally{$('join').disabled=false;}
