@@ -2,6 +2,10 @@ import { $, onValue, roomRef, activeRef, now, background } from './live.js';
 import { openRoom, remaining, escapeHTML } from './game-core.mjs';
 const views=['closed','lobby','play','answer','ranking'];
 let unsubscribe,data,lastFinal=0,currentPin='',lastRank='';
+const joinOverlay=document.createElement('aside');
+joinOverlay.className='hidden';joinOverlay.style.cssText='position:fixed;z-index:4;left:24px;bottom:24px;display:flex;align-items:center;gap:12px;padding:10px 14px;background:#090714e8;border:1px solid #fbbf24;border-radius:16px;box-shadow:0 0 28px #fbbf2466;text-align:left';
+joinOverlay.innerHTML='<img alt="QR para unirse" style="width:78px;height:78px;background:#fff;border-radius:8px;padding:4px"><div><span style="font-size:10px;letter-spacing:.12em;color:#cbd5e1;font-weight:800">PIN DE SALA</span><b style="display:block;color:#fcd34d;font:900 28px Outfit,sans-serif;letter-spacing:.08em">----</b><p style="font-size:11px;color:#fff;margin:3px 0 0">Escanea para jugar</p></div>';
+document.body.append(joinOverlay);const qrMini=joinOverlay.querySelector('img'),pinMini=joinOverlay.querySelector('b');
 function view(name){views.forEach(v=>$(v).classList.toggle('hidden',v!==name));}
 function closed(){data=null;lastFinal=0;lastRank='';view('closed');background();$('qr').removeAttribute('src');$('pin').textContent='----';$('people').replaceChildren();$('list').replaceChildren();$('confetti').replaceChildren();$('image').removeAttribute('src');$('answerImage').removeAttribute('src');}
 onValue(activeRef,s=>{
@@ -14,10 +18,12 @@ function show(){
   const join=c.joinUrl||new URL(`./?room=${currentPin}`,location.href).href;
   const qr='https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=0&data='+encodeURIComponent(join);
   if($('qr').src!==qr)$('qr').src=qr;
+  if(qrMini.src!==qr)qrMini.src=qr;pinMini.textContent=currentPin;
   $('playerCount').textContent=players.length;
   $('people').innerHTML=players.length?players.map(([,p])=>`<span class="person"><span class="avatar">${escapeHTML(p.avatar||p.nombre?.slice(0,2).toUpperCase())}</span>${escapeHTML(p.nombre)}</span>`).join(''):'<p class="empty-players">Esperando a que los jugadores escaneen el código QR…</p>';
   const state=data.estado;
   const target=data.showRanking||['ranking','final'].includes(state)?'ranking':['idle','playing','paused'].includes(state)&&q.image?'play':state==='revealed'?'answer':'lobby';
+  joinOverlay.classList.toggle('hidden',target==='lobby'||!data.showJoinInfo);
   view(target);
   if(target==='play')build(q,'image','grid',false);
   if(target==='answer'){build(q,'answerImage','answerGrid',true);$('correct').textContent=q.opciones?.[q.correcta]||'';}

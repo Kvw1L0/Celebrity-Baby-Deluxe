@@ -3,6 +3,11 @@ import { openRoom, action, escapeHTML } from './game-core.mjs';
 let pin = '', data = null, unsubscribe, busy = false, image64 = '', bg64 = '', tickBusy = false;
 const value = id => $(id).value;
 const say = text => { $('notice').textContent = text; $('welcomeNotice').textContent = text; };
+// Keep the join invitation available as an optional on-screen overlay.
+const joinToggle=document.createElement('label');
+joinToggle.className='toggle wide';
+joinToggle.innerHTML='<input id="showJoinInfo" type="checkbox"> Mostrar QR y PIN en la pantalla gigante';
+$('autoAdvance').parentElement.before(joinToggle);
 const joinUrl = () => new URL(`./?room=${pin}`, location.href).href;
 function reset(message = 'Sala cerrada. Puedes crear una nueva.') {
   unsubscribe?.(); unsubscribe = null; data = null; pin = ''; image64 = ''; bg64 = '';
@@ -11,7 +16,7 @@ function reset(message = 'Sala cerrada. Puedes crear una nueva.') {
   ['photo','background','o0','o1','o2','o3'].forEach(id => $(id).value = '');
   $('preview').removeAttribute('src'); $('preview').style.display = 'none'; $('qr').removeAttribute('src');
   $('players').replaceChildren(); $('playlist').replaceChildren(); $('pin').textContent = '----';
-  $('autoAdvance').checked = false; $('size').value = '6'; $('time').value = '30'; $('order').value = 'random';
+  $('autoAdvance').checked = false; $('showJoinInfo').checked = false; $('size').value = '6'; $('time').value = '30'; $('order').value = 'random';
   document.querySelector('input[name=correct][value="0"]').checked = true;
   say(message);
 }
@@ -33,6 +38,7 @@ function render() {
   $('ranking').textContent = data.showRanking ? 'Ocultar ranking' : 'Mostrar ranking';
   $('save').disabled = busy || final; $('skin').disabled = busy || final; $('close').disabled = busy;
   $('autoAdvance').checked = !!data.autoAdvance; $('autoAdvance').disabled = busy || final;
+  $('showJoinInfo').checked = !!data.showJoinInfo; $('showJoinInfo').disabled = busy;
   $('playlist').innerHTML = rounds.length ? rounds.map((p,i) => `<button class="round ${i===current?'active':''}" data-round="${i}" ${busy||running||final||data.completed?.[p.id]?'disabled':''}><img src="${escapeHTML(p.image)}" alt=""><div><b>Ronda ${i+1}${i===current?' · actual':''}${data.completed?.[p.id]?' · jugada':''}</b><br><small>${escapeHTML(p.opciones[p.correcta])}</small></div></button>`).join('') : '<div class="empty">Aún no hay rondas preparadas.</div>';
   document.querySelectorAll('[data-round]').forEach(b => b.onclick = () => task(() => command('prepare',{index:+b.dataset.round})));
   const players = Object.values(data.jugadores || {});
@@ -102,6 +108,7 @@ $('ranking').onclick=()=>task(()=>command('ranking'));
 $('next').onclick=()=>task(()=>command('prepare',{index:(data.ronda_actual||0)+1}));
 $('end').onclick=()=>task(async()=>{if(!confirm('¿Terminar el juego ahora y mostrar el podio con los puntos acumulados?'))return;await command('end');say('Juego terminado. Puedes mantener el podio o cerrar la sala.');});
 $('autoAdvance').onchange=()=>{const checked=$('autoAdvance').checked;task(()=>change(d=>{d.autoAdvance=checked;return d;}));};
+$('showJoinInfo').onchange=()=>{const checked=$('showJoinInfo').checked;task(async()=>{await change(d=>{d.showJoinInfo=checked;return d;});say(checked?'QR y PIN visibles en la pantalla gigante.':'QR y PIN ocultos en la pantalla gigante.');});};
 $('close').onclick=()=>task(async()=>{
   if(!confirm('¿Cerrar la sala? Se eliminarán jugadores, puntos, respuestas, fotos y configuración de esta sesión. Todos volverán al inicio. Esta acción no se puede deshacer.'))return;
   const closingPin=pin;
