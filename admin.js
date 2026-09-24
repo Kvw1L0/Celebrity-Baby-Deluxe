@@ -1,4 +1,4 @@
-import { $, db, ref, get, onValue, transact, roomRef, activeRef, now } from './live.js';
+import { $, db, ref, get, set, onValue, transact, roomRef, activeRef, now } from './live.js';
 import { openRoom, action, escapeHTML } from './game-core.mjs';
 let pin = '', data = null, unsubscribe, busy = false, image64 = '', bg64 = '', tickBusy = false;
 const value = id => $(id).value;
@@ -67,10 +67,13 @@ $('create').onclick = () => task(async () => {
   if (existing && openRoom((await get(roomRef(existing))).val())) { connect(existing); say('Retomaste la sala que ya estaba abierta.'); return; }
   for (let attempt=0;attempt<30;attempt++) {
     const candidate = String(Math.floor(1000+Math.random()*9000));
-    const created = await transact(roomRef(candidate), d => d ? undefined : {estado:'lobby',creador:now(),ronda_actual:0,config:{tileColor:'#7c4dff',backgroundColor:'#999999',answerBg:'#ffd41f',answerText:'#1d1600'}});
-    if (!created.committed) continue;
-    const activated = await transact(activeRef, current => !current || current===existing ? candidate : undefined);
-    if (!activated.committed) { await transact(roomRef(candidate), d => action(d,'close',now())); throw new Error('Otro administrador abrió una sala.'); }
+    if ((await get(roomRef(candidate))).exists()) continue;
+    // Explicit writes are deliberately used here: the current Firebase rules
+    // accept normal room writes but may reject a root transaction on new data.
+    await set(roomRef(candidate),{estado:'lobby',creador:now(),ronda_actual:0,rondas:[],jugadores:{},config:{tileColor:'#7c4dff',backgroundColor:'#999999',answerBg:'#ffd41f',answerText:'#1d1600'}});
+    const verified=(await get(roomRef(candidate))).val();
+    if(!openRoom(verified)) continue;
+    await set(activeRef,candidate);
     connect(candidate); say('Sala creada. Comparte el QR para recibir participantes.'); return;
   }
   throw new Error('No se pudo asignar un PIN disponible.');

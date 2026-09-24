@@ -1,4 +1,4 @@
-import { $, onValue, transact, roomRef, now, background } from './live.js';
+import { $, onValue, get, set, transact, roomRef, now, background } from './live.js';
 import { openRoom, answerRoom, remaining, escapeHTML } from './game-core.mjs';
 let room=sessionStorage.getItem('cbRoom'),id=sessionStorage.getItem('cbId'),data,unsubscribe,key='',notified='',pending=0;
 const query=new URLSearchParams(location.search),requested=query.get('room');
@@ -16,9 +16,12 @@ $('join').onclick=async()=>{
   if(!/^\d{4}$/.test(code)||name.length<2){$('loginMessage').textContent='Completa el PIN de cuatro dígitos y tu apodo.';return;}
   $('join').disabled=true;
   try{
+    const roomSnapshot=await get(roomRef(code)),roomData=roomSnapshot.val();
+    if(!openRoom(roomData)||roomData.estado==='final'){$('loginMessage').textContent='Esa sala no existe, está cerrada o ya terminó.';return;}
     const playerId='p_'+crypto.randomUUID();
-    const result=await transact(roomRef(code),d=>{if(!openRoom(d)||d.estado==='final')return;d.jugadores||={};d.jugadores[playerId]={nombre:name,puntaje:0};return d;});
-    if(!result.committed){$('loginMessage').textContent='Esa sala no existe, está cerrada o ya terminó.';return;}
+    // Register below the room rather than replacing it. This works with the
+    // Firebase rules that permit participant writes but reject room transactions.
+    await set(ref(roomRef(code),`jugadores/${playerId}`),{nombre:name,puntaje:0});
     room=code;id=playerId;sessionStorage.setItem('cbRoom',room);sessionStorage.setItem('cbId',id);connect();
   }catch(e){$('loginMessage').textContent='No pudimos conectar. Revisa tu conexión e inténtalo nuevamente.';console.error(e);}
   finally{$('join').disabled=false;}
