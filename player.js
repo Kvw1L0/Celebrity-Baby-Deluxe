@@ -1,4 +1,4 @@
-import { $, onValue, get, set, transact, roomRef, now, background } from './live.js';
+import { $, ref, onValue, get, set, transact, roomRef, now, background } from './live.js';
 import { openRoom, answerRoom, remaining, escapeHTML } from './game-core.mjs';
 let room=sessionStorage.getItem('cbRoom'),id=sessionStorage.getItem('cbId'),data,unsubscribe,key='',notified='',pending=0;
 const query=new URLSearchParams(location.search),requested=query.get('room');
